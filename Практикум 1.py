@@ -8,7 +8,7 @@ with open('students.json', 'r', encoding='utf-8') as f:
 total_students = len(students)
 print(f"Общее количество студентов: {total_students}")
 
-# Поиск студента с самым высоким возрастом (без lambda)
+# Поиск студента с самым высоким возрастом
 max_age = -1
 oldest_student = None
 for s in students:
@@ -26,8 +26,7 @@ for s in students:
 print(f"Количество студентов, изучающих {subject}: {count_python}")
 
 
-# Задание 2: Работа с CSV файлом (sales.csv)
-
+# Задание 2: Работа с файлом sales.csv
 import csv
 from collections import defaultdict
 
@@ -46,7 +45,7 @@ for row in sales:
     total_sales += row['Сумма']
 print(f"Общая сумма продаж: {total_sales} руб.")
 
-# Определение продукта с самым высоким объемом продаж (без lambda)
+# Определение продукта с самым высоким объемом продаж
 product_sales = defaultdict(int)
 for row in sales:
     product_sales[row['Продукт']] += row['Сумма']
@@ -71,7 +70,6 @@ for month, amount in sorted(monthly_sales.items()):
 
 
 # Задание 3: Комбинированная работа с JSON и CSV (employees.json и performance.csv)
-
 import json
 import csv
 
@@ -102,7 +100,7 @@ for per in performances:
 avg_perf = total_perf / len(performances)
 print(f"Средняя производительность среди сотрудников: {avg_perf:.2f}")
 
-# Поиск сотрудника с наивысшей производительностью (без lambda)
+# Поиск сотрудника с наивысшей производительностью
 best_perf_value = -1
 best_perf_record = None
 for per in performances:
