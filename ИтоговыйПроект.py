@@ -6,6 +6,13 @@ import json
 with open('student_list.json', 'r', encoding='utf-8') as f:
     students = json.load(f)
 
+# Вспомогательная функция для вычисления среднего балла студента
+def calculate_average(grades_dict):
+    """Принимает словарь оценок, возвращает среднее арифметическое."""
+    if not grades_dict:  # если оценок нет, возвращаем 0
+        return 0
+    return sum(grades_dict.values()) / len(grades_dict)
+
 
 # Задание 1: Средний балл по всем предметам
 def get_average_score():
@@ -14,8 +21,7 @@ def get_average_score():
     и выводит результат в заданном формате.
     """
     for name, info in students.items():
-        grades = info['grades'].values()
-        avg = sum(grades) / len(grades)
+        avg = calculate_average(info['grades'])
         print(f"Средний балл для студента {name}: {avg}")
 
 
@@ -29,8 +35,7 @@ def get_best_student():
     best_name = None
     best_avg = -1
     for name, info in students.items():
-        grades = info['grades'].values()
-        avg = sum(grades) / len(grades)
+        avg = calculate_average(info['grades'])
         if avg > best_avg:
             best_avg = avg
             best_name = name
@@ -42,8 +47,7 @@ def get_worst_student():
     worst_name = None
     worst_avg = float('inf')
     for name, info in students.items():
-        grades = info['grades'].values()
-        avg = sum(grades) / len(grades)
+        avg = calculate_average(info['grades'])
         if avg < worst_avg:
             worst_avg = avg
             worst_name = name
@@ -52,8 +56,14 @@ def get_worst_student():
 
 best_name, best_avg = get_best_student()
 worst_name, worst_avg = get_worst_student()
-print(f"Наилучший студент: {best_name} (Средний балл: {best_avg:.2f})")
-print(f"Худший студент: {worst_name} (Средний балл: {worst_avg:.2f})")
+
+
+# Проверка на пустой список студентов перед выводом
+if not students:
+    print("Нет данных о студентах.")
+else:
+    print(f"Наилучший студент: {best_name} (Средний балл: {best_avg:.2f})")
+    print(f"Худший студент: {worst_name} (Средний балл: {worst_avg:.2f})")
 print()
 
 
@@ -87,8 +97,7 @@ def sort_students_by_average():
     """
     averages = []
     for name, info in students.items():
-        grades = info['grades'].values()
-        avg = sum(grades) / len(grades)
+        avg = calculate_average(info['grades'])
         averages.append((name, avg))
     # Сортировка по убыванию среднего балла
     averages.sort(key=lambda x: x[1], reverse=True)
@@ -97,8 +106,11 @@ def sort_students_by_average():
 
 sorted_students = sort_students_by_average()
 print("Сортировка студентов по среднему баллу:")
-for name, avg in sorted_students:
-    print(f"{name}: {avg:.2f}")
+if not sorted_students:
+    print("Нет данных о студентах.")
+else:
+    for name, avg in sorted_students:
+        print(f"{name}: {avg:.2f}")
 print()
 
 
@@ -122,8 +134,7 @@ def generate_csv(filename='students_grades.csv'):
         writer.writeheader()
         # Используем students_list, где уже есть поле 'name'
         for student in students_list:
-            grades = student['grades'].values()
-            avg = sum(grades) / len(grades)
+            avg = calculate_average(student['grades'])
             writer.writerow({
                 'name': student['name'],
                 'age': student['age'],
