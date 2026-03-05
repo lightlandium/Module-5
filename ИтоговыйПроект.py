@@ -32,6 +32,8 @@ print()
 # Задание 2: Наилучший и худший студент
 def get_best_student():
     """Возвращает имя и средний балл студента с максимальным средним баллом."""
+    if not students:
+        return None, -1
     best_name = None
     best_avg = -1
     for name, info in students.items():
@@ -44,6 +46,8 @@ def get_best_student():
 
 def get_worst_student():
     """Возвращает имя и средний балл студента с минимальным средним баллом."""
+    if not students:
+        return None, float('inf')
     worst_name = None
     worst_avg = float('inf')
     for name, info in students.items():
