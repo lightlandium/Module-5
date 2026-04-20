@@ -2,14 +2,21 @@ import telebot
 from datetime import datetime
 import json
 import os
+import sys
 
+# 1. Безопасная загрузка токена 
 TOKEN = os.getenv('TG_TOKEN')
-print(f"Токен получен: {TOKEN}")
+if TOKEN is None:
+    print("Ошибка: переменная окружения TG_TOKEN не задана.")
+    print("Установите токен бота и перезапустите программу.")
+    sys.exit(1)
+else:
+    # Не выводим токен в консоль, только факт загрузки
+    print("Токен загружен")
 
 bot = telebot.TeleBot(TOKEN)
 
 # Временное хранилище для пользователей, которые отметили /sleep, но ещё не /wake
-# Не сохраняется между запусками
 sleep_times = {}
 
 # Основное хранилище данных: для каждого пользователя хранится список его записей о сне
@@ -17,29 +24,50 @@ sleep_data = {}  # формат: {user_id: [запись1, запись2, ...]}
 
 DATA_FILE = 'sleep_data.json'
 
+
 def load_data():
     global sleep_data
     try:
         if os.path.exists(DATA_FILE) and os.path.getsize(DATA_FILE) > 0:
             with open(DATA_FILE, 'r', encoding='utf-8') as f:
                 loaded_data = json.load(f)
-                # Преобразуем строки datetime обратно в объекты datetime
-                for user_id, records in loaded_data.items():
-                    for record in records:
-                        if 'start_time' in record:
-                            try:
-                                record['start_time'] = datetime.fromisoformat(record['start_time'])
-                            except (ValueError, TypeError):
-                                print(f"Ошибка преобразования start_time для пользователя {user_id}")
-                                continue
-                        if 'wake_time' in record:
-                            try:
-                                record['wake_time'] = datetime.fromisoformat(record['wake_time'])
-                            except (ValueError, TypeError):
-                                print(f"Ошибка преобразования wake_time для пользователя {user_id}")
-                                continue
-                sleep_data = loaded_data
-                print(f"Загружено данных для {len(sleep_data)} пользователей")
+
+            # Фильтруем записи с корректными datetime
+            cleaned_data = {}
+            for user_id, records in loaded_data.items():
+                valid_records = []
+                for record in records:
+                    # Проверяем наличие обоих полей
+                    if 'start_time' not in record or 'wake_time' not in record:
+                        print(f"Пропущена запись для {user_id}: отсутствует start_time или wake_time")
+                        continue
+
+                    # Преобразуем строки в datetime
+                    try:
+                        start_time = datetime.fromisoformat(record['start_time'])
+                        wake_time = datetime.fromisoformat(record['wake_time'])
+                    except (ValueError, TypeError) as e:
+                        print(f"Ошибка преобразования datetime для {user_id}: {e}")
+                        continue  # пропускаем всю запись целиком
+
+                    # Валидная запись – копируем с корректными datetime
+                    valid_record = {
+                        'start_time': start_time,
+                        'wake_time': wake_time,
+                        'duration': record.get('duration', 0.0)
+                    }
+                    if 'quality' in record:
+                        valid_record['quality'] = record['quality']
+                    if 'notes' in record:
+                        valid_record['notes'] = record['notes']
+
+                    valid_records.append(valid_record)
+
+                if valid_records:
+                    cleaned_data[user_id] = valid_records
+
+            sleep_data = cleaned_data
+            print(f"Загружено данных для {len(sleep_data)} пользователей")
         else:
             print("Файл данных не найден или пуст, начинаем с чистого листа")
             sleep_data = {}
@@ -47,9 +75,9 @@ def load_data():
         print(f"Ошибка при загрузке данных: {e}")
         sleep_data = {}
 
+
 def save_data():
     try:
-        # Копируем данные для преобразования datetime в строки
         data_to_save = {}
         for user_id, records in sleep_data.items():
             records_copy = []
@@ -68,7 +96,9 @@ def save_data():
     except Exception as e:
         print(f"Ошибка при сохранении данных: {e}")
 
+
 load_data()
+
 
 @bot.message_handler(commands=['start'])
 def start(message):
@@ -88,6 +118,7 @@ def start(message):
 
     bot.send_message(message.chat.id, text)
 
+
 @bot.message_handler(commands=['sleep'])
 def sleep_start(message):
     user_id = str(message.from_user.id)
@@ -95,6 +126,7 @@ def sleep_start(message):
     sleep_times[user_id] = current_time
     bot.send_message(message.chat.id,
                      f"Зафиксировано время отхода ко сну: {current_time.strftime('%H:%M')}\nУтром отправьте /wake")
+
 
 @bot.message_handler(commands=['wake'])
 def sleep_end(message):
@@ -105,7 +137,7 @@ def sleep_end(message):
         bot.send_message(message.chat.id, "Вы не отмечали отход ко сну командой /sleep")
         return
 
-    sleep_time = sleep_times.pop(user_id)  # удаляем из временного хранилища
+    sleep_time = sleep_times.pop(user_id)
 
     duration_seconds = (wake_time - sleep_time).total_seconds()
     if duration_seconds < 0:
@@ -114,28 +146,25 @@ def sleep_end(message):
 
     duration = duration_seconds / 3600
 
-    # Создаём запись (пока без качества и заметок)
     new_record = {
         'start_time': sleep_time,
         'wake_time': wake_time,
         'duration': round(duration, 2)
     }
 
-    # Добавляем запись в историю пользователя
     if user_id not in sleep_data:
         sleep_data[user_id] = []
     sleep_data[user_id].append(new_record)
 
     msg = bot.send_message(message.chat.id,
                            f"Продолжительность сна: {duration:.1f} часов\n\nОцените качество сна от 1 до 10:")
-    # Запоминаем индекс последней записи, чтобы потом обновить её
-    bot.register_next_step_handler(msg, ask_quality, user_id, len(sleep_data[user_id])-1)
+    bot.register_next_step_handler(msg, ask_quality, user_id, len(sleep_data[user_id]) - 1)
+
 
 def ask_quality(message, user_id, record_index):
     try:
         quality = int(message.text)
         if 1 <= quality <= 10:
-            # Обновляем последнюю запись
             sleep_data[user_id][record_index]['quality'] = quality
             msg = bot.send_message(message.chat.id, "Добавьте заметки о сне (или отправьте '-' для пропуска):")
             bot.register_next_step_handler(msg, ask_notes, user_id, record_index)
@@ -146,12 +175,12 @@ def ask_quality(message, user_id, record_index):
         msg = bot.send_message(message.chat.id, "Пожалуйста, введите число от 1 до 10:")
         bot.register_next_step_handler(msg, ask_quality, user_id, record_index)
 
+
 def ask_notes(message, user_id, record_index):
     notes = message.text
     if notes.strip() and notes.strip() != '-':
         sleep_data[user_id][record_index]['notes'] = notes.strip()
 
-    # Сохраняем данные в файл после завершения записи
     save_data()
 
     record = sleep_data[user_id][record_index]
@@ -168,6 +197,7 @@ def ask_notes(message, user_id, record_index):
 
     bot.send_message(message.chat.id, response)
 
+
 @bot.message_handler(commands=['stats'])
 def show_stats(message):
     user_id = str(message.from_user.id)
@@ -176,7 +206,6 @@ def show_stats(message):
         bot.send_message(message.chat.id, "У вас нет сохраненных данных о сне")
         return
 
-    # Берём последнюю запись
     last_record = sleep_data[user_id][-1]
 
     response = "Ваша статистика сна (последняя запись):\n\n"
@@ -190,7 +219,6 @@ def show_stats(message):
     if 'notes' in last_record and last_record['notes']:
         response += f"Заметки: {last_record['notes']}\n"
 
-    # Анализ продолжительности
     if last_record['duration'] < 6:
         response += "\nСлишком короткий сон! Рекомендуется 7-9 часов."
     elif last_record['duration'] > 10:
@@ -199,6 +227,7 @@ def show_stats(message):
         response += "\nПродолжительность сна в норме!"
 
     bot.send_message(message.chat.id, response)
+
 
 @bot.message_handler(commands=['clear'])
 def clear_data(message):
@@ -211,12 +240,14 @@ def clear_data(message):
     else:
         bot.send_message(message.chat.id, "У вас нет сохраненных данных")
 
+
 @bot.message_handler(func=lambda message: True)
 def handle_text(message):
     if message.text.lower() in ['помощь', 'help']:
         start(message)
     else:
         bot.send_message(message.chat.id, "Используйте команды из меню или /start для помощи")
+
 
 print("Бот для отслеживания сна запущен!")
 try:
