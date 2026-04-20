@@ -2,11 +2,11 @@ import csv
 import json
 
 
-def convert_csv_to_json(csv_filename, delimiter=',', line_sep='\n'):
+def convert_csv_to_json(csv_filename, delimiter=','):
     """
-    Читает CSV-файл и преобразует его в JSON-строку.
+    Читает CSV-файл и преобразует его в список словарей.
     Первая строка файла считается заголовком (названия колонок).
-    Возвращает список словарей {колонка: значение}.
+    Возвращает список словарей {колонка: значение} или None при ошибке.
     """
     data = []
     try:
@@ -27,6 +27,10 @@ def convert_csv_to_json(csv_filename, delimiter=',', line_sep='\n'):
 def main():
     # Запрашиваем имя файла
     filename = input("Введите имя CSV-файла: ").strip()
+    if not filename:
+        print("Ошибка: имя файла не может быть пустым.")
+        return
+
     delim = input("Введите разделитель столбцов (по умолчанию ','): ").strip()
     if not delim:
         delim = ','
